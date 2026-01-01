@@ -13,8 +13,8 @@
                 "description": "Please enter your PowerOcean device information below:",
                 "data": {
                     "serialnumber": "Inverter serial number",
-                    "password": "Password",
-                    "username": "Username"
+                    "password": "SecretKey",
+                    "username": "AccessKey"
                 }
             },
             "device_options": {

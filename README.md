@@ -1,21 +1,22 @@
 <!-- prettier-ignore -->
 # Ecoflow PowerOcean
 
-[Home Assistant](https://home-assistant.io/) custom component to get access to my PowerOcean system from EcoFlow.
+[Home Assistant](https://home-assistant.io/) custom component to get access to PowerOcean system from EcoFlow.
 
-This component was inspired by [tolwi/hassio-ecoflow-cloud](https://github.com/tolwi/hassio-ecoflow-cloud) and is a copy of [evercape/hass-resol-KM2](https://github.com/evercape/hass-resol-KM2).  
+This component is a fork of [jdammers/powerocean](https://github.com/jdammers/powerocean) and was updated to use the new API.
 
-Temporary quick solution to my problem.
-I hope of an integrate PowerOcean into [tolwi/hassio-ecoflow-cloud](https://github.com/tolwi/hassio-ecoflow-cloud) with an official API.
-
-Hopefully it works for others.
+Temporary quick solution.
+The official API documentation can be found at [https://developer-eu.ecoflow.com/us/document/powerocean](https://developer-eu.ecoflow.com/us/document/powerocean).
 
 ## Prerequisites
 
-I have tested the component with my System.
-I use the Android App and the Webportal at https://portal.ecoflow.com/user/eu/de/login
+- You need the serial number of your inverter
+- Go to [https://developer-eu.ecoflow.com/us/security](https://developer-eu.ecoflow.com/us/security), login and create an AccessKey with a SecretKey
+- Instead of username and password you will need the AccessKey and the SecretKey for login
 
-You need the S/N number of your inverter and your credentinals
+## Disclaimer
+
+The following parts of the document are copy-pasted from [jdammers/powerocean](https://github.com/jdammers/powerocean)
 
 ## Installation
 

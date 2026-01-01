@@ -13,8 +13,8 @@
                 "description": "Bitte geben Sie unten Ihre PowerOcean Geräteinformationen ein:",
                 "data": {
                     "serialnumber": "Seriennummer des Wechselrichters",
-                    "password": "Passwort",
-                    "username": "Benutzername"
+                    "password": "SecretKey",
+                    "username": "AccessKey"
                 }
             },
             "device_options": {

@@ -1,10 +1,12 @@
 """ecoflow.py: API for PowerOcean integration."""
 
 import requests
-import datetime
+import datetime,time
 import base64
 import json
 import re
+import hashlib, hmac
+import os
 
 from collections import namedtuple
 from homeassistant.exceptions import IntegrationError
@@ -22,66 +24,37 @@ PowerOceanEndPoint = namedtuple(
 
 # ecoflow_api to detect device and get device info, fetch the actual data from the PowerOcean device, and parse it
 class ecoflow_api:
-    def __init__(self, serialnumber, username, password):
-        self.username = username
-        self.password = password
+    def __init__(self, serialnumber, accessKey, secretKey):
+        self.accessKey = accessKey
+        self.secretKey = secretKey
         self.sn = serialnumber
         self.token = ""
         self.device = None
         self.session = requests.Session()
 
+    def generate_header(self):
+        nonce = os.urandom(3).hex()
+        timestamp = str(int(time.time() * 1000))
+        signClr = "&".join(["sn=" + self.sn, "accessKey=" + self.accessKey, "nonce=" + nonce, "timestamp=" + timestamp])
+        sign = hmac.HMAC(self.secretKey.encode(), signClr.encode(), hashlib.sha256).digest().hex()
+        print(f"signClr={signClr}")
+        print(f"sign={sign}")
+        return {
+            "nonce": nonce,
+            "timestamp": timestamp,
+            "sign": sign
+        }
+
     def detect_device(self):
-        try:
-            # curl 'https://api-e.ecoflow.com/auth/login' \
-            # -H 'content-type: application/json' \
-            # --data-raw '{"userType":"ECOFLOW","scene":"EP_ADMIN","email":"","password":""}'
-
-            url = f"https://api-e.ecoflow.com/auth/login"
-            headers = {"lang": "en_US", "content-type": "application/json"}
-            data = {
-                "email": self.username,
-                "password": base64.b64encode(self.password.encode()).decode(),
-                "scene": "IOT_APP",
-                "userType": "ECOFLOW",
-            }
-
-            _LOGGER.debug(f"Login to EcoFlow API {url}")
-            request = requests.post(url, json=data, headers=headers, timeout=30)
-            response = self.get_json_response(request)
-            _LOGGER.debug(f"{response}")
-
-            try:
-                self.token = response["data"]["token"]
-            except KeyError as key:
-                raise Exception(
-                    f"Failed to extract key {key} from response: {response}"
-                )
-
-            self.device = {
-                "product": "PowerOcean",
-                "vendor": "Ecoflow",
-                "serial": self.sn,
-                "version": "5.1.8",
-                "build": "13",
-                "name": "PowerOcean",
-                "features": "Photovoltaik",
-            }
-
-        except ConnectionError:
-            _LOGGER.warning(
-                f"Unable to connect to {url}. Device might be offline."
-                + ISSUE_URL_ERROR_MESSAGE
-            )
-            raise IntegrationError(error)
-            return None
-
-        except RequestException as e:
-            error = f"Error detecting PowerOcean device - {e}"
-            _LOGGER.error(
-                f"Error detecting PowerOcean device - {e}" + ISSUE_URL_ERROR_MESSAGE
-            )
-            raise IntegrationError(error)
-            return None
+        self.device = {
+            "product": "PowerOcean",
+            "vendor": "Ecoflow",
+            "serial": self.sn,
+            "version": "5.1.8",
+            "build": "13",
+            "name": "PowerOcean",
+            "features": "Photovoltaik",
+        }
 
         return self.device
 
@@ -106,15 +79,22 @@ class ecoflow_api:
 
     # Fetch the data from the PowerOcean device, which then constitues the Sensors
     def fetch_data(self):
-        # curl 'https://api-e.ecoflow.com/provider-service/user/device/detail?sn={self.sn}}' \
-        # -H 'authorization: Bearer {self.token}'
-
-        url = f"https://api-e.ecoflow.com/provider-service/user/device/detail?sn={self.sn}"
+        url = f"https://api-e.ecoflow.com/iot-open/sign/device/quota/all?sn={self.sn}"
 
         try:
-            headers = {"authorization": f"Bearer {self.token}"}
+            header = self.generate_header();
+            headers = {
+                "content-type": "application/json;charset=utf-8",
+                "accessKey": self.accessKey,
+                "nonce": header["nonce"],
+                "timestamp": header["timestamp"],
+                "sign": header["sign"]
+            }
+            data = {
+                "sn": self.sn
+            }
 
-            request = requests.get(url, headers=headers, timeout=30)
+            request = requests.get(url, headers=headers, json=data, timeout=30)
             response = self.get_json_response(request)
 
             _LOGGER.debug(f"{response}")
@@ -164,33 +144,13 @@ class ecoflow_api:
                 unit_tmp = "Wh"
             if "Generation" in key:
                 unit_tmp = "kWh"
-
-            data[unique_id] = PowerOceanEndPoint(
-                internal_unique_id=unique_id,
-                serial=self.sn,
-                name=f"{self.sn}_{key}",
-                friendly_name=key,
-                value=value,
-                unit=unit_tmp,
-                description=description_tmp,
-            )
-
-        for key, value in response["data"]["quota"]["JTS1_EMS_CHANGE_REPORT"].items():
-            unique_id = f"{self.sn}_{key}"
-            unit_tmp = ""
-            description_tmp = key
-            if key == "bpTotalChgEnergy":
+            
+            if key == "ems_change_report.bpTotalChgEnergy":
                 unit_tmp = "Wh"
                 description_tmp = "Batterie Laden Total"
-            if key == "bpTotalDsgEnergy":
+            if key == "ems_change_report.bpTotalDsgEnergy":
                 unit_tmp = "Wh"
                 description_tmp = "Batterie Entladen Total"
-            # if "LowVol" in key:
-            #     unit_tmp = "V"
-            # if "HighVol" in key:
-            #     unit_tmp = "V"
-            # if "OverVol" in key:
-            #     unit_tmp = "V"
 
             data[unique_id] = PowerOceanEndPoint(
                 internal_unique_id=unique_id,
